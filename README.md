@@ -1,2 +1,1 @@
-#ApiCore
-ApiCore is a fork/clone of DraperrStudio apivore/core  of deleted repo
+provides a unified interface for building API Clients
