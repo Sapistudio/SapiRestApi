@@ -7,35 +7,17 @@ use SapiStudio\RestApi\AbstractHttpClient;
  */
 class HttpClient extends AbstractHttpClient
 {
-    /**
-     * {@inheritdoc}
-     */
     protected $headers = [
-           'User-Agent' => 'Apivore/Hitpath',
+          any custom header as array
     ];
 
-    /**
-     * {@inheritdoc}
-     */
-    protected $requestModifiers = [\Affiliates\Clients\Hitpath\Request\Modifiers\RequestModifier::class];
+    protected $requestModifiers = [your own modifier class];
 
-    /**
-     * @var string
-     */
-    protected $responseFormat = 'xml';
+    protected $responseFormat = 'xml json or txt';
     
-    /**
-     * @param $baseUri
-     * @param $path
-     *
-     * @return string
-     */
     protected function buildRequestUri($baseUri,$path=false)
     {
-        $parsed = parse_url($baseUri);
-        $return = (is_bool($path) && $path==true) ? $parsed['scheme'].'://reporting.'.$parsed['host'].'/api.php' : $parsed['scheme'].'://api.'.$parsed['host'].'/pubapi.php';
-        return $return;
+        format your own custom request url
     }
 }
-HeadlessChrome::url('https://example.com')->save($pathToImage);
 ```
