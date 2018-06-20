@@ -237,7 +237,7 @@ abstract class AbstractHttpClient implements HttpInterface
      */
     private function handleResponse($response)
     {
-        $response = $this->responseNormaliser->normalise($response, $this->responseFormat);              
+        $response = $this->responseNormaliser->normalise($response, $this->responseFormat);
         return (!is_string($response)) ? $this->responseErrorHandler->handle($response) : $response;
     }
 
@@ -544,9 +544,9 @@ abstract class AbstractHttpClient implements HttpInterface
      * 
      * @return
      */
-    public function setConfig($config)
+    public function setConfig($config = [])
     {
-        $this->config = $config;
+        $this->config = new Config($config);
     }
 
     /**
@@ -556,9 +556,6 @@ abstract class AbstractHttpClient implements HttpInterface
      */
     public function getConfig($key)
     {
-        if (!empty($this->config) && !empty($key)) {
-            return $this->config->$key;
-        }
-        return $this->config;
+        return $this->config->$key;
     }
 }
