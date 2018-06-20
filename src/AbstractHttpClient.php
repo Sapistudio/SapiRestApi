@@ -1,12 +1,11 @@
 <?php
-
 namespace SapiStudio\RestApi;
 
+use ReflectionClass;
 use SapiStudio\RestApi\Interfaces\HttpClient as HttpInterface;
 use SapiStudio\RestApi\Request\ErrorHandler as RequestErrorHandler;
 use SapiStudio\RestApi\Response\ErrorHandler as ResponseErrorHandler;
 use SapiStudio\RestApi\Response\Normaliser;
-use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Psr7\Request;
 
@@ -64,129 +63,151 @@ abstract class AbstractHttpClient implements HttpInterface
      * @var string
      */
     protected $apiClass;
-
+    
+    
+    private $apiContainer = [];
+    
+   
     /**
-     * AbstractHttpClient constructor.
-     *
+     * AbstractHttpClient::api()
+     * 
+     * @return
+     */
+    public function api($name)
+    {
+        return $this->setInContainer((new ReflectionClass(get_called_class()))->getNamespaceName().'\\Api\\'.$name);
+    }
+    
+    /**
+     * AbstractHttpClient::setInContainer()
+     * 
+     * @return
+     */
+    protected function setInContainer($objectName = null){
+        if(is_null($objectName))
+            return false;
+        if(!isset($this->apiContainer[md5($objectName)]))
+            $this->apiContainer[md5($objectName)] = new $objectName($this);
+        return $this->apiContainer[md5($objectName)];
+    }
+    
+    /**
+     * AbstractHttpClient::__construct()
+     * 
+     * @return
      */
     public function __construct()
     {
-        $this->requestErrorHandler = new RequestErrorHandler();
+        $this->requestErrorHandler  = new RequestErrorHandler();
         $this->responseErrorHandler = new ResponseErrorHandler();
-        $this->responseNormaliser = new Normaliser();
+        $this->responseNormaliser   = new Normaliser();
     }
 
     /**
-     * @param $path
-     *
-     * @return mixed
+     * AbstractHttpClient::get()
+     * 
+     * @return
      */
     public function get($path=null,$parameters=null)
     {
-        if($parameters)
+        if($parameters){
             foreach($parameters as $key=>$parameter)
                 $this->addQuery($key,$parameter);
-        return $this->request('GET',$path);
+        }
+        return $this->startRequest('GET',$path);
     }
 
     /**
-     * @param $path
-     *
-     * @return mixed
+     * AbstractHttpClient::head()
+     * 
+     * @return
      */
     public function head($path=null,$parameters=null)
     {
-        return $this->request('HEAD', $path);
+        return $this->startRequest('HEAD', $path);
     }
 
     /**
-     * @param $path
-     *
-     * @return mixed
+     * AbstractHttpClient::delete()
+     * 
+     * @return
      */
     public function delete($path=null,$parameters=null)
     {
-        return $this->request('DELETE', $path);
+        return $this->startRequest('DELETE', $path);
     }
 
     /**
-     * @param $path
-     *
-     * @return mixed
+     * AbstractHttpClient::put()
+     * 
+     * @return
      */
     public function put($path=null,$parameters=null)
     {
-        return $this->request('PUT', $path);
+        return $this->startRequest('PUT', $path);
     }
 
     /**
-     * @param $path
-     *
-     * @return mixed
+     * AbstractHttpClient::patch()
+     * 
+     * @return
      */
     public function patch($path=null,$parameters=null)
     {
-        return $this->request('PATCH', $path);
+        return $this->startRequest('PATCH', $path);
     }
 
     /**
-     * @param $path
-     *
-     * @return mixed
+     * AbstractHttpClient::post()
+     * 
+     * @return
      */
     public function post($path=null,$parameters=null)
     {
-        if($parameters)
+        if($parameters){
             foreach($parameters as $key=>$parameter)
                 $this->addFormParameter($key,$parameter);
-        return $this->request('POST', $path);
+        }
+        return $this->startRequest('POST', $path);
     }
 
     /**
-     * @param $path
-     *
-     * @return mixed
+     * AbstractHttpClient::options()
+     * 
+     * @return
      */
     public function options($path=null,$parameters=null)
     {
-        return $this->request('OPTIONS', $path);
+        return $this->startRequest('OPTIONS', $path);
     }
 
     /**
-     * @return GuzzleClient
+     * AbstractHttpClient::getHttpClient()
+     * 
+     * @return
      */
     public function getHttpClient()
     {
-        $this->options['defaults']['headers'] = $this->getHeaders();
-        if (class_exists($handler = $this->getHandler())) {
-            $handler = new $handler($this);
-            $this->setHandler($handler->create());
-        }
-        return new GuzzleClient($this->options);
+        $this->options['headers'] = $this->getHeaders();
+        return \SapiStudio\Http\Browser\CurlClient::getDefaultClient($this->options);
     }
 
     /**
-     * @param $baseUri
-     * @param $path
-     *
-     * @return string
+     * AbstractHttpClient::buildRequestUri()
+     * 
+     * @return
      */
     protected function buildRequestUri($baseUri, $path)
     {
         return $baseUri.$path;
     }
 
-    protected function getHandler()
-    {
-    }
-
     /**
-     * @param $method
-     * @param $path
-     *
-     * @return mixed
+     * AbstractHttpClient::startRequest()
+     * 
+     * @return
      */
-    private function request($method, $path)
+    private function startRequest($method, $path)
     {
         $modifiedClient = $this->applyModifiers([
             'method'      => $method,
@@ -199,61 +220,49 @@ abstract class AbstractHttpClient implements HttpInterface
         ]);
 
         $modifiedClient->setHeaders($this->getHeaders());
-
         $client = $modifiedClient->getHttpClient();
-
-        $request = new Request(
-            $method,
-            $this->buildRequestUri($modifiedClient->options['base_uri'], $path),
-            $modifiedClient->headers
-        );
-
+        $request = new Request($method,$this->buildRequestUri($modifiedClient->options['base_uri'], $path),$modifiedClient->headers);
         try {
             $response = $client->send($request, $modifiedClient->body);
         } catch (ClientException $e) {
             return $this->requestErrorHandler->handle($e);
         }
-
         return $modifiedClient->handleResponse($response->getBody());
     }
 
     /**
-     * @param $response
-     *
-     * @return mixed
+     * AbstractHttpClient::handleResponse()
+     * 
+     * @return
      */
     private function handleResponse($response)
     {
-        $response = $this->responseNormaliser->normalise(
-            $response, $this->responseFormat
-        );
-        if(!is_string($response))
-            $this->responseErrorHandler->handle($response);
-        return $response;
+        $response = $this->responseNormaliser->normalise($response, $this->responseFormat);              
+        return (!is_string($response)) ? $this->responseErrorHandler->handle($response) : $response;
     }
 
     /**
-     * @param $arguments
-     *
-     * @return AbstractHttpClient
+     * AbstractHttpClient::applyModifiers()
+     * 
+     * @return
      */
     private function applyModifiers($arguments)
     {
-        $modifiers = $this->getRequestModifier();
-
+        $modifiers      = $this->getRequestModifier();
         $modifiedClient = $this;
-
-        foreach ($modifiers as $modifier) {
-            $modifier = new $modifier($modifiedClient, $arguments);
-
-            $modifiedClient = $modifier->apply();
+        if($modifiers){
+            foreach ($modifiers as $modifier) {
+                $modifier = new $modifier($modifiedClient, $arguments);
+                $modifiedClient = $modifier->apply();
+            }
         }
-
         return $modifiedClient;
     }
 
     /**
-     * @return mixed
+     * AbstractHttpClient::getQuery()
+     * 
+     * @return
      */
     public function getQuery()
     {
@@ -261,31 +270,39 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $data
+     * AbstractHttpClient::setQuery()
+     * 
+     * @return
      */
     public function setQuery($data)
     {
-        $this->body['query'] = array_merge(
-            array_get($this->body, 'query', []), $data
-        );
+        $this->body['query'] = array_merge(array_get($this->body, 'query', []), $data);
     }
 
     /**
-     * @param $key
-     * @param $value
+     * AbstractHttpClient::addQuery()
+     * 
+     * @return
      */
     public function addQuery($key, $value)
     {
         $this->body['query'][$key] = $value;
     }
 
+    /**
+     * AbstractHttpClient::flushQuery()
+     * 
+     * @return
+     */
     public function flushQuery()
     {
         unset($this->body['query']);
     }
 
     /**
-     * @return mixed
+     * AbstractHttpClient::getFormParameters()
+     * 
+     * @return
      */
     public function getFormParameters()
     {
@@ -293,31 +310,39 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $data
+     * AbstractHttpClient::setFormParameters()
+     * 
+     * @return
      */
     public function setFormParameters($data)
     {
-        $this->body['form_params'] = array_merge(
-            array_get($this->body, 'form_params', []), $data
-        );
+        $this->body['form_params'] = array_merge(array_get($this->body, 'form_params', []), $data);
     }
 
     /**
-     * @param $key
-     * @param $value
+     * AbstractHttpClient::addFormParameter()
+     * 
+     * @return
      */
     public function addFormParameter($key, $value)
     {
         $this->body['form_params'][$key] = $value;
     }
 
+    /**
+     * AbstractHttpClient::flushFormParameters()
+     * 
+     * @return
+     */
     public function flushFormParameters()
     {
         unset($this->body['form_params']);
     }
 
     /**
-     * @return mixed
+     * AbstractHttpClient::getJson()
+     * 
+     * @return
      */
     public function getJson()
     {
@@ -325,31 +350,39 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $data
+     * AbstractHttpClient::setJson()
+     * 
+     * @return
      */
     public function setJson($data)
     {
-        $this->body['json'] = array_merge(
-            array_get($this->body, 'json', []), $data
-        );
+        $this->body['json'] = array_merge(array_get($this->body, 'json', []), $data);
     }
 
     /**
-     * @param $key
-     * @param $value
+     * AbstractHttpClient::addJson()
+     * 
+     * @return
      */
     public function addJson($key, $value)
     {
         $this->body['json'][$key] = $value;
     }
 
+    /**
+     * AbstractHttpClient::flushJson()
+     * 
+     * @return
+     */
     public function flushJson()
     {
         unset($this->body['json']);
     }
 
     /**
-     * @return mixed
+     * AbstractHttpClient::getMultipart()
+     * 
+     * @return
      */
     public function getMultipart()
     {
@@ -357,31 +390,39 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $data
+     * AbstractHttpClient::setMultipart()
+     * 
+     * @return
      */
     public function setMultipart($data)
     {
-        $this->body['multipart'] = array_merge(
-            array_get($this->body, 'multipart', []), $data
-        );
+        $this->body['multipart'] = array_merge(array_get($this->body, 'multipart', []), $data);
     }
 
     /**
-     * @param $name
-     * @param $contents
+     * AbstractHttpClient::addMultipart()
+     * 
+     * @return
      */
     public function addMultipart($name, $contents)
     {
         $this->body['multipart'][] = compact('name', 'contents');
     }
 
+    /**
+     * AbstractHttpClient::flushMultipart()
+     * 
+     * @return
+     */
     public function flushMultipart()
     {
         unset($this->body['multipart']);
     }
 
     /**
-     * @return mixed
+     * AbstractHttpClient::getHeaders()
+     * 
+     * @return
      */
     public function getHeaders()
     {
@@ -389,7 +430,9 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $headers
+     * AbstractHttpClient::setHeaders()
+     * 
+     * @return
      */
     public function setHeaders($headers)
     {
@@ -397,23 +440,29 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $key
-     * @param $value
+     * AbstractHttpClient::addHeader()
+     * 
+     * @return
      */
     public function addHeader($key, $value)
     {
         $this->headers[$key] = $value;
     }
 
+    /**
+     * AbstractHttpClient::flushHeaders()
+     * 
+     * @return
+     */
     public function flushHeaders()
     {
         unset($this->headers);
     }
 
     /**
-     * @param $key
-     *
-     * @return mixed
+     * AbstractHttpClient::getOption()
+     * 
+     * @return
      */
     public function getOption($key)
     {
@@ -421,8 +470,9 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $key
-     * @param $value
+     * AbstractHttpClient::setOption()
+     * 
+     * @return
      */
     public function setOption($key, $value)
     {
@@ -430,8 +480,9 @@ abstract class AbstractHttpClient implements HttpInterface
     }
     
     /**
-     * @param $key
-     * @param $value
+     * AbstractHttpClient::unsetOption()
+     * 
+     * @return
      */
     public function unsetOption($key)
     {
@@ -439,7 +490,9 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $path
+     * AbstractHttpClient::setBaseUrl()
+     * 
+     * @return
      */
     public function setBaseUrl($path)
     {
@@ -447,8 +500,9 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $key
-     * @param $value
+     * AbstractHttpClient::setDefault()
+     * 
+     * @return
      */
     public function setDefault($key, $value)
     {
@@ -456,7 +510,9 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $handler
+     * AbstractHttpClient::setHandler()
+     * 
+     * @return
      */
     public function setHandler($handler)
     {
@@ -464,7 +520,9 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $modifier
+     * AbstractHttpClient::addRequestModifier()
+     * 
+     * @return
      */
     public function addRequestModifier($modifier)
     {
@@ -472,7 +530,9 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @return array
+     * AbstractHttpClient::getRequestModifier()
+     * 
+     * @return
      */
     public function getRequestModifier()
     {
@@ -480,7 +540,9 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $config
+     * AbstractHttpClient::setConfig()
+     * 
+     * @return
      */
     public function setConfig($config)
     {
@@ -488,32 +550,15 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /**
-     * @param $key
-     *
-     * @return mixed
+     * AbstractHttpClient::getConfig()
+     * 
+     * @return
      */
     public function getConfig($key)
     {
         if (!empty($this->config) && !empty($key)) {
             return $this->config->$key;
         }
-
         return $this->config;
-    }
-
-    /**
-     * @param $class
-     */
-    public function setApiClass($class)
-    {
-        $this->apiClass = $class;
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getApiClass()
-    {
-        return $this->apiClass;
     }
 }
