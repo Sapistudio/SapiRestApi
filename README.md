@@ -1,4 +1,5 @@
 provides a unified interface for building API Clients
+first create your client class
 ```php
 use SapiStudio\RestApi\AbstractHttpClient;
 
@@ -11,7 +12,7 @@ class HttpClient extends AbstractHttpClient
           any custom header as array
     ];
 
-    protected $requestModifiers = [your own modifier class];
+    protected $requestModifiers = [RequestModifier::class];
 
     protected $responseFormat = 'xml json or txt';
     
@@ -20,4 +21,37 @@ class HttpClient extends AbstractHttpClient
         format your own custom request url
     }
 }
+```
+Next create your modifier
+```php
+use SapiStudio\RestApi\Request\Modifier;
+
+class RequestModifier extends Modifier
+{
+    public function apply()
+    {
+        $this->httpClient->setOption('base_uri', $this->httpClient->getConfig('your config key set on init'));
+        return $this->httpClient;
+    }
+}
+```
+And finally , your api class
+```php
+use SapiStudio\RestApi\AbstractApi;
+
+class MyApi extends AbstractApi
+{
+    public function myapiFunction()
+    {
+        $this->addFormParameter('apifunc',$functionName);
+        return $this->post(true,$parameters);
+        return $this->get(true,$parameters);
+    }
+}
+```
+And now to use it
+```php
+$class      = new HttpClient();
+$class->setConfig(['key'        => value]);
+$apicall = $class->api('MyApi')->myapiFunction();
 ```
