@@ -1,4 +1,5 @@
 provides a unified interface for building API Clients
+
 first create your client class
 ```php
 use SapiStudio\RestApi\AbstractHttpClient;
