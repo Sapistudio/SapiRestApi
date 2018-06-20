@@ -189,7 +189,7 @@ abstract class AbstractHttpClient implements HttpInterface
     public function getHttpClient()
     {
         $this->options['headers'] = $this->getHeaders();
-        return \SapiStudio\Http\Browser\CurlClient::getDefaultClient($this->options);
+        return \SapiStudio\Http\Browser\CurlClient::make($this->options);
     }
 
     /**
@@ -218,7 +218,6 @@ abstract class AbstractHttpClient implements HttpInterface
             'json'        => $this->getJson(),
             'headers'     => $this->getHeaders(),
         ]);
-
         $modifiedClient->setHeaders($this->getHeaders());
         $client = $modifiedClient->getHttpClient();
         $request = new Request($method,$this->buildRequestUri($modifiedClient->options['base_uri'], $path),$modifiedClient->headers);
@@ -237,8 +236,7 @@ abstract class AbstractHttpClient implements HttpInterface
      */
     private function handleResponse($response)
     {
-        $response = $this->responseNormaliser->normalise($response, $this->responseFormat);
-        return (!is_string($response)) ? $this->responseErrorHandler->handle($response) : $response;
+        return $this->responseNormaliser->normalise($response, $this->responseFormat);
     }
 
     /**
