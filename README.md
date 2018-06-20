@@ -31,7 +31,8 @@ class RequestModifier extends Modifier
 {
     public function apply()
     {
-        $this->httpClient->setOption('base_uri', $this->httpClient->getConfig('your config key set on init'));
+        $this->httpClient->setOption('base_uri', $this->httpClient->getConfig('your config key set on init'));//this is a required parameter,the base uri of the api call
+        $this->httpClient->addFormParameter('apikey', $this->httpClient->getConfig('apikey'));//if you set an api key in config,you can use it here
         return $this->httpClient;
     }
 }
