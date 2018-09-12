@@ -62,7 +62,11 @@ abstract class AbstractHttpClient implements HttpInterface
     /**
      * @var string
      */
-    protected $apiClass;
+    protected $responseStatusCode;
+    /**
+     * @var string
+     */
+    protected $responseBodyContent;
     
     
     private $apiContainer = [];
@@ -226,6 +230,8 @@ abstract class AbstractHttpClient implements HttpInterface
         } catch (ClientException $e) {
             return $this->requestErrorHandler->handle($e);
         }
+        $this->responseStatusCode   = $response->getStatusCode();
+        $this->responseBodyContent  = $response->getBody()->getContents();
         return $modifiedClient->handleResponse($response->getBody());
     }
 
