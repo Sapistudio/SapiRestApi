@@ -6,7 +6,7 @@
     "require": {
         "php": ">=5.6",
         "illuminate/support": "5.4.*",
-        "guzzlehttp/guzzle": "^6.2",
+        "sapistudio/http": "^3.3",
         "symfony/serializer": "^3.4"
     },
     "autoload": {
