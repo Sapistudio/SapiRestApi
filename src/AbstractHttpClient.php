@@ -193,7 +193,7 @@ abstract class AbstractHttpClient implements HttpInterface
     public function getHttpClient()
     {
         $this->options['headers'] = $this->getHeaders();
-        return \SapiStudio\Http\Browser\CurlClient::make($this->options);
+        return \SapiStudio\Http\Browser\StreamClient::make($this->options);
     }
 
     /**
