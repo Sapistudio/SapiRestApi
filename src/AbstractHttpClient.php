@@ -193,7 +193,7 @@ abstract class AbstractHttpClient implements HttpInterface
     public function getHttpClient()
     {
         $this->options['headers'] = $this->getHeaders();
-        return new \GuzzleHttp\Client($this->options);
+        return \SapiStudio\Http\Browser\StreamClient::make($this->options);
     }
 
     /**
@@ -231,7 +231,7 @@ abstract class AbstractHttpClient implements HttpInterface
             return $this->requestErrorHandler->handle($e);
         }
         $this->responseStatusCode   = $response->getStatusCode();
-        $this->responseBodyContent  = $response->getBody()->getContents();
+        $this->responseBodyContent  = $response->getBody();
         return $modifiedClient->handleResponse($response->getBody());
     }
 
