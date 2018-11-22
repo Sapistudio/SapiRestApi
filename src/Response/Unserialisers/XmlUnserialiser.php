@@ -9,8 +9,11 @@ use SapiStudio\RestApi\Interfaces\Response\Unserialiser;
  */
 class XmlUnserialiser implements Unserialiser
 {
-    public function unserialise($input,$class = null)
+    public function unserialise($input)
     {
-        return (array) json_decode(json_encode(simplexml_load_string($input, null, LIBXML_NOCDATA)),true);
+        $decode = simplexml_load_string($input, null, LIBXML_NOCDATA);
+        if (!$decode)
+            throw new \Exception('Invalid xml format');
+        return (array)json_decode(json_encode($decode),true);
     }
 }
