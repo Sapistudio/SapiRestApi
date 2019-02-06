@@ -234,7 +234,17 @@ abstract class AbstractHttpClient implements HttpInterface
         $this->responseBodyContent  = $response->getBody();
         return $modifiedClient->handleResponse($response->getBody());
     }
-
+    
+    /**
+     * AbstractHttpClient::setFormat()
+     * 
+     * @return void
+     */
+    public function setFormat($responseFormat)
+    {
+        $this->responseFormat = $responseFormat;  
+    }
+    
     /**
      * AbstractHttpClient::handleResponse()
      * 
