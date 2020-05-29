@@ -1,19 +1,14 @@
 <?php
-
-
 namespace SapiStudio\RestApi\Response\Unserialisers;
-
 use SapiStudio\RestApi\Interfaces\Response\Unserialiser;
 
-/**
- * Class JsonUnserialiser.
- */
+/** Class JsonUnserialiser.*/
 class JsonUnserialiser implements Unserialiser
 {
     public function unserialise($input, $class = null)
     {
         $result = json_decode($input);
-        // switch and check possible JSON errors
+        /** switch and check possible JSON errors*/
         switch (json_last_error()) {
             case JSON_ERROR_NONE:
                 $error = ''; // JSON is valid // No error has occurred
