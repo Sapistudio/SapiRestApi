@@ -1,20 +1,13 @@
 <?php
-
 namespace SapiStudio\RestApi\Response;
 
 use SapiStudio\RestApi\Interfaces\Response\Normaliser as NormaliserContract;
 use InvalidArgumentException;
 
-/**
- * Class Normaliser.
- */
+/** Class Normaliser.*/
 class Normaliser implements NormaliserContract
 {
-    /**
-     * Normaliser::normalise()
-     * 
-     * @return
-     */
+    /** Normaliser::normalise() */
     public function normalise($response, $format)
     {
         switch ($format){
@@ -38,25 +31,19 @@ class Normaliser implements NormaliserContract
         return $response;
     }
 
-    /**
-     * @return Unserialisers\JsonUnserialiser
-     */
+    /** Normaliser::getJsonUnserialiser() */
     protected function getJsonUnserialiser()
     {
         return new Unserialisers\JsonUnserialiser();
     }
     
-    /**
-     * @return Unserialisers\XmlUnserialiser
-     */
+    /** Normaliser::getXmlUnserialiser() */
     protected function getXmlUnserialiser()
     {
         return new Unserialisers\XmlUnserialiser();
     }
 
-    /**
-     * @return Unserialisers\PlainUnserialiser
-     */
+    /** Normaliser::getPlainUnserialiser() */
     protected function getPlainUnserialiser()
     {
         return new Unserialisers\PlainUnserialiser();
