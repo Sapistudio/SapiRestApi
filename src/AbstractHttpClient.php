@@ -9,84 +9,29 @@ use SapiStudio\RestApi\Response\Normaliser;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Psr7\Request;
 
-/**
- * Class AbstractHttpClient.
- */
+/** Class AbstractHttpClient. wrapper against the guxzzle interface*/
 abstract class AbstractHttpClient implements HttpInterface
 {
-    /**
-     * @var array
-     */
-    protected $body = [];
-
-    /**
-     * @var array
-     */
-    protected $headers = [];
-
-    /**
-     * @var array
-     */
-    protected $options = [];
-
-    /**
-     * @var string
-     */
-    protected $responseFormat = 'json';
-
-    /**
-     * @var ErrorHandler
-     */
+    protected $body                 = [];
+    protected $headers              = [];
+    protected $options              = [];
+    protected $responseFormat       = 'json';
     protected $requestErrorHandler;
-
-    /**
-     * @var ErrorHandler
-     */
     protected $responseErrorHandler;
-
-    /**
-     * @var Normaliser
-     */
     protected $responseNormaliser;
-
-    /**
-     * @var array
-     */
-    protected $requestModifiers = [];
-
-    /**
-     * @var array
-     */
+    protected $requestModifiers     = [];
     protected $config;
-
-    /**
-     * @var string
-     */
     protected $responseStatusCode;
-    /**
-     * @var string
-     */
     protected $responseBodyContent;
+    private $apiContainer           = [];
     
-    
-    private $apiContainer = [];
-    
-   
-    /**
-     * AbstractHttpClient::api()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::api() */
     public function api($name)
     {
         return $this->setInContainer((new ReflectionClass(get_called_class()))->getNamespaceName().'\\Api\\'.$name);
     }
     
-    /**
-     * AbstractHttpClient::setInContainer()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::setInContainer() */
     protected function setInContainer($objectName = null){
         if(is_null($objectName))
             return false;
@@ -95,11 +40,7 @@ abstract class AbstractHttpClient implements HttpInterface
         return $this->apiContainer[md5($objectName)];
     }
     
-    /**
-     * AbstractHttpClient::__construct()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::__construct() */
     public function __construct()
     {
         $this->requestErrorHandler  = new RequestErrorHandler();
@@ -107,11 +48,7 @@ abstract class AbstractHttpClient implements HttpInterface
         $this->responseNormaliser   = new Normaliser();
     }
 
-    /**
-     * AbstractHttpClient::get()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::get()*/
     public function get($path=null,$parameters=null)
     {
         if($parameters){
@@ -121,51 +58,31 @@ abstract class AbstractHttpClient implements HttpInterface
         return $this->startRequest('GET',$path);
     }
 
-    /**
-     * AbstractHttpClient::head()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::head() */
     public function head($path=null,$parameters=null)
     {
         return $this->startRequest('HEAD', $path);
     }
 
-    /**
-     * AbstractHttpClient::delete()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::delete()*/
     public function delete($path=null,$parameters=null)
     {
         return $this->startRequest('DELETE', $path);
     }
 
-    /**
-     * AbstractHttpClient::put()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::put() */
     public function put($path=null,$parameters=null)
     {
         return $this->startRequest('PUT', $path);
     }
 
-    /**
-     * AbstractHttpClient::patch()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::patch()*/
     public function patch($path=null,$parameters=null)
     {
         return $this->startRequest('PATCH', $path);
     }
 
-    /**
-     * AbstractHttpClient::post()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::post()  */
     public function post($path=null,$parameters=null)
     {
         if($parameters){
@@ -174,57 +91,44 @@ abstract class AbstractHttpClient implements HttpInterface
         }
         return $this->startRequest('POST', $path);
     }
-
-    /**
-     * AbstractHttpClient::options()
-     * 
-     * @return
-     */
+    
+    /** AbstractHttpClient::cachedPostRequest() */
+    public function cachedPostRequest($cacheHash = null,$path = null,$parameters = null)
+    {
+        return $this->getModifiedClient()->handleResponse($this->getHttpClient()->cacheRequest($cacheHash)->post($path,$parameters));
+    }
+    
+    /** AbstractHttpClient::cachedGetRequest() */
+    public function cachedGetRequest($cacheHash = null,$path = null,$parameters = null)
+    {
+        return $this->getModifiedClient()->handleResponse($this->getHttpClient()->cacheRequest($cacheHash)->get($path,$parameters));
+    }
+    
+    /** AbstractHttpClient::options()*/
     public function options($path=null,$parameters=null)
     {
         return $this->startRequest('OPTIONS', $path);
     }
 
-    /**
-     * AbstractHttpClient::getHttpClient()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::getHttpClient() */
     public function getHttpClient()
     {
         $this->options['headers'] = $this->getHeaders();
         return \SapiStudio\Http\Browser\StreamClient::make($this->options);
     }
 
-    /**
-     * AbstractHttpClient::buildRequestUri()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::buildRequestUri() */
     protected function buildRequestUri($baseUri, $path)
     {
         return $baseUri.$path;
     }
 
-    /**
-     * AbstractHttpClient::startRequest()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::startRequest()*/
     private function startRequest($method, $path)
     {
-        $modifiedClient = $this->applyModifiers([
-            'method'      => $method,
-            'path'        => $path,
-            'form_params' => $this->getFormParameters(),
-            'multiplart'  => $this->getMultipart(),
-            'query'       => $this->getQuery(),
-            'json'        => $this->getJson(),
-            'headers'     => $this->getHeaders(),
-        ]);
-        $modifiedClient->setHeaders($this->getHeaders());
-        $client = $modifiedClient->getHttpClient();
-        $request = new Request($method,$this->buildRequestUri($modifiedClient->options['base_uri'], $path),$modifiedClient->headers);
+        $modifiedClient = $this->getModifiedClient();
+        $client         = $modifiedClient->getHttpClient();
+        $request        = new Request($method,$this->buildRequestUri($modifiedClient->options['base_uri'], $path),$modifiedClient->headers);
         try {
             $response = $client->send($request, $modifiedClient->body);
         } catch (ClientException $e) {
@@ -235,31 +139,32 @@ abstract class AbstractHttpClient implements HttpInterface
         return $modifiedClient->handleResponse($response->getBody());
     }
     
-    /**
-     * AbstractHttpClient::setFormat()
-     * 
-     * @return void
-     */
+    /** AbstractHttpClient::setFormat() */
     public function setFormat($responseFormat)
     {
         $this->responseFormat = $responseFormat;  
     }
     
-    /**
-     * AbstractHttpClient::handleResponse()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::handleResponse() */
     private function handleResponse($response)
     {
         return $this->responseNormaliser->normalise($response, $this->responseFormat);
     }
-
-    /**
-     * AbstractHttpClient::applyModifiers()
-     * 
-     * @return
-     */
+    
+    /** AbstractHttpClient::getModifiedClient() */
+    private function getModifiedClient(){
+        return $this->applyModifiers([
+            'method'      => $method,
+            'path'        => $path,
+            'form_params' => $this->getFormParameters(),
+            'multiplart'  => $this->getMultipart(),
+            'query'       => $this->getQuery(),
+            'json'        => $this->getJson(),
+            'headers'     => $this->getHeaders(),
+        ])->setHeaders($this->getHeaders());
+    }
+    
+    /** AbstractHttpClient::applyModifiers()  */
     private function applyModifiers($arguments)
     {
         $modifiers      = $this->getRequestModifier();
@@ -273,301 +178,202 @@ abstract class AbstractHttpClient implements HttpInterface
         return $modifiedClient;
     }
 
-    /**
-     * AbstractHttpClient::getQuery()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::getQuery() */
     public function getQuery()
     {
         return array_get($this->body, 'query');
     }
 
-    /**
-     * AbstractHttpClient::setQuery()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::setQuery()*/
     public function setQuery($data)
     {
         $this->body['query'] = array_merge(array_get($this->body, 'query', []), $data);
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::addQuery()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::addQuery()*/
     public function addQuery($key, $value)
     {
         $this->body['query'][$key] = $value;
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::flushQuery()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::flushQuery()*/
     public function flushQuery()
     {
         unset($this->body['query']);
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::getFormParameters()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::getFormParameters() */
     public function getFormParameters()
     {
         return array_get($this->body, 'form_params');
     }
 
-    /**
-     * AbstractHttpClient::setFormParameters()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::setFormParameters()*/
     public function setFormParameters($data)
     {
         $this->body['form_params'] = array_merge(array_get($this->body, 'form_params', []), $data);
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::addFormParameter()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::addFormParameter() */
     public function addFormParameter($key, $value)
     {
         $this->body['form_params'][$key] = $value;
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::flushFormParameters()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::flushFormParameters() */
     public function flushFormParameters()
     {
         unset($this->body['form_params']);
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::getJson()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::getJson()*/
     public function getJson()
     {
         return array_get($this->body, 'json');
     }
 
-    /**
-     * AbstractHttpClient::setJson()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::setJson() */
     public function setJson($data)
     {
         $this->body['json'] = array_merge(array_get($this->body, 'json', []), $data);
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::addJson()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::addJson()*/
     public function addJson($key, $value)
     {
         $this->body['json'][$key] = $value;
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::flushJson()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::flushJson() */
     public function flushJson()
     {
         unset($this->body['json']);
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::getMultipart()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::getMultipart()  */
     public function getMultipart()
     {
         return array_get($this->body, 'multipart');
     }
 
-    /**
-     * AbstractHttpClient::setMultipart()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::setMultipart() */
     public function setMultipart($data)
     {
         $this->body['multipart'] = array_merge(array_get($this->body, 'multipart', []), $data);
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::addMultipart()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::addMultipart() */
     public function addMultipart($name, $contents)
     {
         $this->body['multipart'][] = compact('name', 'contents');
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::flushMultipart()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::flushMultipart()*/
     public function flushMultipart()
     {
         unset($this->body['multipart']);
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::getHeaders()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::getHeaders() */
     public function getHeaders()
     {
         return $this->headers;
     }
 
-    /**
-     * AbstractHttpClient::setHeaders()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::setHeaders() */
     public function setHeaders($headers)
     {
         $this->headers = array_merge($this->headers, $headers);
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::addHeader()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::addHeader()*/
     public function addHeader($key, $value)
     {
         $this->headers[$key] = $value;
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::flushHeaders()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::flushHeaders() */
     public function flushHeaders()
     {
         unset($this->headers);
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::getOption()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::getOption()*/
     public function getOption($key)
     {
         return $this->options[$key];
     }
 
-    /**
-     * AbstractHttpClient::setOption()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::setOption() */
     public function setOption($key, $value)
     {
         $this->options[$key] = $value;
+        return $this;
     }
     
-    /**
-     * AbstractHttpClient::unsetOption()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::unsetOption()*/
     public function unsetOption($key)
     {
         unset($this->options[$key]);
     }
 
-    /**
-     * AbstractHttpClient::setBaseUrl()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::setBaseUrl() */
     public function setBaseUrl($path)
     {
         $this->options['base_url'] = $path;
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::setDefault()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::setDefault()*/
     public function setDefault($key, $value)
     {
         $this->options['defaults'][$key] = $value;
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::setHandler()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::setHandler() */
     public function setHandler($handler)
     {
         $this->options['handler'] = $handler;
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::addRequestModifier()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::addRequestModifier()*/
     public function addRequestModifier($modifier)
     {
         $this->requestModifiers[] = $modifier;
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::getRequestModifier()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::getRequestModifier() */
     public function getRequestModifier()
     {
         return $this->requestModifiers;
     }
 
-    /**
-     * AbstractHttpClient::setConfig()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::setConfig()*/
     public function setConfig($config = [])
     {
         $this->config = new Config($config);
+        return $this;
     }
 
-    /**
-     * AbstractHttpClient::getConfig()
-     * 
-     * @return
-     */
+    /** AbstractHttpClient::getConfig()*/
     public function getConfig($key)
     {
         return $this->config->$key;
