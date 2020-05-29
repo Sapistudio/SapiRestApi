@@ -1,12 +1,8 @@
 <?php
-
 namespace SapiStudio\RestApi\Response\Unserialisers;
-
 use SapiStudio\RestApi\Interfaces\Response\Unserialiser;
 
-/**
- * Class XmlUnserialiser.
- */
+/** Class XmlUnserialiser.*/
 class XmlUnserialiser implements Unserialiser
 {
     public function unserialise($input)
