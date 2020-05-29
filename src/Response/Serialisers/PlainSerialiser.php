@@ -4,16 +4,10 @@ namespace SapiStudio\RestApi\Response\Serialisers;
 
 use SapiStudio\RestApi\Interfaces\Request\Serialiser;
 
-/**
- * Class PlainSerialiser.
- */
+/** Class PlainSerialiser.*/
 class PlainSerialiser implements Serialiser
 {
-    /**
-     * @param $input
-     *
-     * @return mixed
-     */
+    /** PlainSerialiser::serialise()*/
     public function serialise($input)
     {
         return $input;
