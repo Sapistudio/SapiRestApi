@@ -9,7 +9,7 @@ use SapiStudio\RestApi\Response\Normaliser;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Psr7\Request;
 
-/** Class AbstractHttpClient. wrapper against the guxzzle interface*/
+/** Class AbstractHttpClient. wrapper against the guzzle interface*/
 abstract class AbstractHttpClient implements HttpInterface
 {
     protected $body                 = [];
@@ -154,6 +154,7 @@ abstract class AbstractHttpClient implements HttpInterface
                 $requestClient = $requestClient->cacheRequest($cacheName);
             $requestParams = (is_array($customParamaters) && !empty($customParamaters)) ? array_merge_recursive($modifiedClient->body,$customParamaters) : $modifiedClient->body;
             $response = $requestClient->send($request,$requestParams);
+            $this->flushAll();
         } catch (ClientException $e) {
             return $this->requestErrorHandler->handle($e);
         }
@@ -173,6 +174,15 @@ abstract class AbstractHttpClient implements HttpInterface
     private function handleResponse($response)
     {
         return $this->responseNormaliser->normalise($response, $this->responseFormat);
+    }
+    
+    /** AbstractHttpClient::flushAll() */
+    protected function flushAll(){
+        $this->flushJson();
+        $this->flushQuery();
+        $this->flushFormParameters();
+        $this->flushMultipart();
+        return $this;
     }
     
     /** AbstractHttpClient::getModifiedClient() */
