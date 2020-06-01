@@ -16,14 +16,14 @@ abstract class AbstractHttpClient implements HttpInterface
     protected $headers              = [];
     protected $options              = [];
     protected $responseFormat       = 'json';
+    protected $requestModifiers     = [];
+    private $apiContainer           = [];
     protected $requestErrorHandler;
     protected $responseErrorHandler;
     protected $responseNormaliser;
-    protected $requestModifiers     = [];
     protected $config;
     protected $responseStatusCode;
     protected $responseBodyContent;
-    private $apiContainer           = [];
     
     /** AbstractHttpClient::api() */
     public function api($name)
@@ -92,22 +92,42 @@ abstract class AbstractHttpClient implements HttpInterface
         return $this->startRequest('POST', $path);
     }
     
+    /** AbstractHttpClient::postJson()  */
+    public function postJson($path=null,$parameters=null)
+    {
+        $this->setJson($parameters);
+        return $this->startRequest('POST', $path);
+    }
+    
     /** AbstractHttpClient::cachedPostRequest() */
     public function cachedPostRequest($cacheHash = null,$path = null,$parameters = null)
     {
-        return $this->getModifiedClient()->handleResponse($this->getHttpClient()->cacheRequest($cacheHash)->post($path,$parameters));
+        return $this->startRequest('POST',$path,$parameters,$cacheHash);
     }
     
     /** AbstractHttpClient::cachedGetRequest() */
     public function cachedGetRequest($cacheHash = null,$path = null,$parameters = null)
     {
-        return $this->getModifiedClient()->handleResponse($this->getHttpClient()->cacheRequest($cacheHash)->get($path,$parameters));
+        if(!$path){
+            $path       = $cacheHash;
+            $cacheHash  = md5($cacheHash);
+        }
+        return $this->startRequest('GET',$path,$parameters,$cacheHash);
     }
     
     /** AbstractHttpClient::options()*/
     public function options($path=null,$parameters=null)
     {
         return $this->startRequest('OPTIONS', $path);
+    }
+    
+    /** AbstractHttpClient::getRequestUri()*/
+    public function getRequestUri($path=null,$parameters=null)
+    {
+        $url = $this->buildRequestUri($modifiedClient->options['base_uri'], $path);
+        if($parameters)
+            $url .= '?'.http_build_query(array_merge($parameters,$this->getQuery()));
+        return $url;
     }
 
     /** AbstractHttpClient::getHttpClient() */
@@ -116,7 +136,7 @@ abstract class AbstractHttpClient implements HttpInterface
         $this->options['headers'] = $this->getHeaders();
         return \SapiStudio\Http\Browser\StreamClient::make($this->options);
     }
-
+    
     /** AbstractHttpClient::buildRequestUri() */
     protected function buildRequestUri($baseUri, $path)
     {
@@ -124,19 +144,23 @@ abstract class AbstractHttpClient implements HttpInterface
     }
 
     /** AbstractHttpClient::startRequest()*/
-    private function startRequest($method, $path)
+    private function startRequest($method,$path,$customParamaters = [],$cacheName = false)
     {
         $modifiedClient = $this->getModifiedClient();
-        $client         = $modifiedClient->getHttpClient();
+        $requestClient  = $modifiedClient->getHttpClient();
         $request        = new Request($method,$this->buildRequestUri($modifiedClient->options['base_uri'], $path),$modifiedClient->headers);
         try {
-            $response = $client->send($request, $modifiedClient->body);
+            if($cacheName && is_string($cacheName))
+                $requestClient = $requestClient->cacheRequest($cacheName);
+            $requestParams = (is_array($customParamaters) && !empty($customParamaters)) ? array_merge_recursive($modifiedClient->body,$customParamaters) : $modifiedClient->body;
+            $response = $requestClient->send($request,$requestParams);
         } catch (ClientException $e) {
             return $this->requestErrorHandler->handle($e);
         }
         $this->responseStatusCode   = $response->getStatusCode();
         $this->responseBodyContent  = $response->getBody();
-        return $modifiedClient->handleResponse($response->getBody());
+        $returnResponse             = $modifiedClient->handleResponse($response->getBody());
+        return (method_exists($this,'validateApiResponse')) ? $this->validateApiResponse($returnResponse) : $returnResponse;
     }
     
     /** AbstractHttpClient::setFormat() */
@@ -171,8 +195,7 @@ abstract class AbstractHttpClient implements HttpInterface
         $modifiedClient = $this;
         if($modifiers){
             foreach ($modifiers as $modifier) {
-                $modifier = new $modifier($modifiedClient, $arguments);
-                $modifiedClient = $modifier->apply();
+                $modifiedClient = (new $modifier($modifiedClient, $arguments))->apply();
             }
         }
         return $modifiedClient;
