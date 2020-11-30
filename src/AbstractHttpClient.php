@@ -22,6 +22,7 @@ abstract class AbstractHttpClient implements HttpInterface
     protected $responseErrorHandler;
     protected $responseNormaliser;
     protected $config;
+    protected $responseObject;
     protected $responseStatusCode;
     protected $responseBodyContent;
     
@@ -158,6 +159,7 @@ abstract class AbstractHttpClient implements HttpInterface
         } catch (ClientException $e) {
             return $this->requestErrorHandler->handle($e);
         }
+        $this->responseObject       = $response;
         $this->responseStatusCode   = $response->getStatusCode();
         $this->responseBodyContent  = $response->getBody();
         $returnResponse             = $modifiedClient->handleResponse($response->getBody());
