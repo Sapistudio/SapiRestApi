@@ -14,6 +14,9 @@ class Normaliser implements NormaliserContract
             case 'json':
                 $response = $this->getJsonUnserialiser()->unserialise($response);
                 break;
+            case 'json_as_array':
+                $response = $this->getJsonUnserialiser()->unserialise($response,true);
+                break;
             case 'xml':
                 $response = $this->getXmlUnserialiser()->unserialise($response);
                 break;

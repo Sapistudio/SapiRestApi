@@ -25,6 +25,7 @@ abstract class AbstractHttpClient implements HttpInterface
     protected $responseObject;
     protected $responseStatusCode;
     protected $responseBodyContent;
+    protected $checkResponseStatusCode = false;
     
     /** AbstractHttpClient::api() */
     public function api($name)
@@ -135,6 +136,7 @@ abstract class AbstractHttpClient implements HttpInterface
     public function getHttpClient()
     {
         $this->options['headers'] = $this->getHeaders();
+        $this->options['verify'] = false;
         return \SapiStudio\Http\Browser\StreamClient::make($this->options);
     }
     
@@ -155,6 +157,9 @@ abstract class AbstractHttpClient implements HttpInterface
                 $requestClient = $requestClient->cacheRequest($cacheName);
             $requestParams = (is_array($customParamaters) && !empty($customParamaters)) ? array_merge_recursive($modifiedClient->body,$customParamaters) : $modifiedClient->body;
             $response = $requestClient->send($request,$requestParams);
+            if($this->checkResponseStatusCode && $response->getStatusCode() != 200){
+                throw new \Exception('Request error on '.$response->getCurrentUri().'.Code '.$response->getStatusCode().',message '.$response->getReasonPhrase());
+            }
             $this->flushAll();
         } catch (ClientException $e) {
             return $this->requestErrorHandler->handle($e);

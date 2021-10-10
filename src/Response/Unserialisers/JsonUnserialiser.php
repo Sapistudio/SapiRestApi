@@ -5,9 +5,9 @@ use SapiStudio\RestApi\Interfaces\Response\Unserialiser;
 /** Class JsonUnserialiser.*/
 class JsonUnserialiser implements Unserialiser
 {
-    public function unserialise($input, $class = null)
+    public function unserialise($input, $asArray = false)
     {
-        $result = json_decode($input);
+        $result = json_decode($input,$asArray);
         /** switch and check possible JSON errors*/
         switch (json_last_error()) {
             case JSON_ERROR_NONE:
